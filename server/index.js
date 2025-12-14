@@ -21,7 +21,8 @@ const RECONNECT_WINDOW = 1000;
 let gameState = {
 	hostSocketId: null,
 	status: "waiting",
-	players: {}
+	players: {},
+	messages: []
 };
 
 const HOST_PASSWORD = "SECRET_TASK_PASS";
@@ -29,20 +30,20 @@ const HOST_PASSWORD = "SECRET_TASK_PASS";
 setInterval(() => {
 	const now = Date.now();
 	const playerList = Object.values(gameState.players);
-	let hasChanges = false;
 
 	playerList.forEach(player => {
 		if (player.isOnline && (now - player.lastHeartbeat > HEARTBEAT_TIMEOUT)) {
-			console.log(`💀 Игрок отвалился (Timeout): ${player.name}`);
+			// console.log(`💀 Игрок отвалился (Timeout): ${player.name}`);
 			player.isOnline = false;
-			hasChanges = true;
 		}
 	});
 
 	if (gameState.hostSocketId) {
 		io.to(gameState.hostSocketId).emit("game_tick", {
 			players: playerList,
-			status: gameState.status
+			status: gameState.status,
+			phase: gameState.phase, // Отправляем фазу хосту
+			messages: gameState.messages // И историю сообщений
 		});
 	}
 
@@ -62,13 +63,33 @@ io.on("connection", (socket) => {
 		if (password === HOST_PASSWORD) {
 			gameState.hostSocketId = socket.id;
 			console.log(`✅ ХОСТ ПОДКЛЮЧЕН: ${socket.id}`);
+			socket.emit("game_state_update", { status: gameState.status, phase: gameState.phase });
 		}
 	});
 
 	socket.on("host_start_game", () => {
-		if (socket.id === gameState.hostSocketId) {
+		if (socket.id === gameState.hostSocketId && gameState.status === "waiting") {
 			gameState.status = "playing";
-			console.log("🚂 ИГРА НАЧАЛАСЬ");
+			gameState.phase = "choosing"; // 1. Художник выбирает
+			gameState.messages = []; // Очищаем чат новой игры
+
+			console.log("🚂 ИГРА НАЧАЛАСЬ: Фаза выбора");
+			io.emit("game_state_update", { status: "playing", phase: "choosing" });
+
+			// Таймер на 2 секунды для выбора (заглушка)
+			setTimeout(() => {
+				gameState.phase = "countdown"; // 2. Обратный отсчет
+				console.log("⏱ Фаза таймера");
+				io.emit("game_state_update", { status: "playing", phase: "countdown" });
+
+				// Таймер 3 секунды перед рисованием
+				setTimeout(() => {
+					gameState.phase = "drawing"; // 3. Рисование и чат
+					console.log("🎨 Фаза рисования");
+					io.emit("game_state_update", { status: "playing", phase: "drawing" });
+				}, 3000);
+
+			}, 2000);
 		}
 	});
 
@@ -93,6 +114,7 @@ io.on("connection", (socket) => {
 			player.socketId = socket.id;
 			player.isOnline = true;
 			player.lastHeartbeat = now;
+			player.messages = gameState.messages;
 
 			if (gameState.status === "waiting" && name) player.name = name;
 
@@ -106,7 +128,8 @@ io.on("connection", (socket) => {
 				avatar: avatar || "😎",
 				score: 0,
 				isOnline: true,
-				lastHeartbeat: now
+				lastHeartbeat: now,
+				messages: gameState.messages
 			};
 			gameState.players[userId] = player;
 			console.log(`👋 Новый: ${player.name}`);
