@@ -1,16 +1,16 @@
-import { useEffect, useState, useRef } from 'react';
-import { socket } from '../socket';
-import { getUserId } from '../utils/session';
+import { useEffect, useState, useRef } from "react";
+import { socket } from "../socket";
+import { getUserId } from "../utils/session";
 
 export const usePlayer = () => {
 	const [joined, setJoined] = useState(false);
-	const [error, setError] = useState('');
+	const [error, setError] = useState("");
 	const [playerData, setPlayerData] = useState<any>(null);
-	const [ping, setPing] = useState(0); // Состояние для UI
+	const [ping, setPing] = useState(0);
 
 	const heartbeatRef = useRef<number | null>(null);
-	const nameRef = useRef('');
-	const pingRef = useRef(0); // Храним в рефе, чтобы передавать в интервал без замыканий
+	const nameRef = useRef("");
+	const pingRef = useRef(0);
 
 	useEffect(() => {
 		if (!socket.connected) socket.connect();
@@ -18,7 +18,7 @@ export const usePlayer = () => {
 		const onHandshakeSuccess = (data: any) => {
 			setJoined(true);
 			setPlayerData(data);
-			setError('');
+			setError("");
 			startHeartbeat();
 		};
 
@@ -29,25 +29,25 @@ export const usePlayer = () => {
 		};
 
 		const onForceReconnect = () => {
-			console.log('⚠️ Сервер забыл нас. Пробуем войти заново.');
+			console.log("⚠️ Сервер забыл нас. Пробуем войти заново.");
 			if (nameRef.current) joinGame(nameRef.current);
 		};
 
 		const onConnect = () => {
-			console.log('Socket connected');
+			console.log("Socket connected");
 			if (nameRef.current) joinGame(nameRef.current);
 		};
 
-		socket.on('handshake_success', onHandshakeSuccess);
-		socket.on('handshake_error', onHandshakeError);
-		socket.on('force_reconnect', onForceReconnect);
-		socket.on('connect', onConnect);
+		socket.on("handshake_success", onHandshakeSuccess);
+		socket.on("handshake_error", onHandshakeError);
+		socket.on("force_reconnect", onForceReconnect);
+		socket.on("connect", onConnect);
 
 		return () => {
-			socket.off('handshake_success', onHandshakeSuccess);
-			socket.off('handshake_error', onHandshakeError);
-			socket.off('force_reconnect', onForceReconnect);
-			socket.off('connect', onConnect);
+			socket.off("handshake_success", onHandshakeSuccess);
+			socket.off("handshake_error", onHandshakeError);
+			socket.off("force_reconnect", onForceReconnect);
+			socket.off("connect", onConnect);
 			stopHeartbeat();
 		};
 	}, []);
@@ -58,16 +58,13 @@ export const usePlayer = () => {
 		heartbeatRef.current = window.setInterval(() => {
 			if (socket.connected) {
 				const start = Date.now();
-
-				// Отправляем текущий известный пинг серверу
-				// И ждем ответа (callback), чтобы вычислить новый
-				socket.emit('heartbeat', { ping: pingRef.current }, () => {
+				socket.emit("heartbeat", { ping: pingRef.current }, () => {
 					const latency = Date.now() - start;
 					pingRef.current = latency;
 					setPing(latency);
 				});
 			}
-		}, 1000); // Шлем раз в секунду (чаще для пинга не нужно, это не шутер)
+		}, 1000);
 	};
 
 	const stopHeartbeat = () => {
@@ -80,10 +77,12 @@ export const usePlayer = () => {
 	const joinGame = (name: string) => {
 		if (!name.trim()) return;
 		nameRef.current = name;
-		setError('');
+		setError("");
 
 		const userId = getUserId();
-		socket.emit('player_handshake', { name, userId, avatar: '😎' });
+		const avatarUrl = `https://api.dicebear.com/9.x/open-peeps/svg?seed=${userId}`;
+
+		socket.emit("player_handshake", { name, userId, avatar: avatarUrl });
 	};
 
 	return { joined, error, joinGame, playerData, ping };

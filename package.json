@@ -6,5 +6,8 @@
 		"client": "npm run dev --prefix client",
 		"server": "npm run dev --prefix server",
 		"serve": "concurrently \"npm run server\" \"npm run client\""
+	},
+	"dependencies": {
+		"socket.io-client": "^4.8.1"
 	}
 }

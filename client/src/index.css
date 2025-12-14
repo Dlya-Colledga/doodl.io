@@ -6,11 +6,9 @@
 	--color-primary-dark: #3b9dc0;
 	--color-secondary: #fbb13c;
 
-	/* Добавляем кастомные анимации в тему */
 	--animate-wave: wave 2.5s ease-in-out infinite;
 	--animate-float-pencil: float-pencil 3s ease-in-out infinite;
 
-	/* Определяем keyframes */
 	@keyframes wave {
 
 		0%,
@@ -44,7 +42,6 @@ body {
 	@apply bg-slate-900 text-white font-display overflow-hidden;
 }
 
-/* Вспомогательный класс для обводки текста (Text Stroke), так как в TW его нет по умолчанию */
 .text-stroke-3 {
 	-webkit-text-stroke: 3px black;
 	paint-order: stroke fill;

@@ -1,16 +1,16 @@
-import React from 'react';
-import { twMerge } from 'tailwind-merge';
+import React from "react";
+import { twMerge } from "tailwind-merge";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-	variant?: 'primary' | 'secondary' | 'danger';
-	size?: 'md' | 'lg';
+	variant?: "primary" | "secondary" | "danger";
+	size?: "md" | "lg";
 }
 
 export const Button: React.FC<ButtonProps> = ({
 	children,
 	className,
-	variant = 'primary',
-	size = 'md',
+	variant = "primary",
+	size = "md",
 	...props
 }) => {
 	const baseStyles = "rounded-2xl font-bold transition-all transform active:scale-95 shadow-[0_4px_0_0_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[4px]";
