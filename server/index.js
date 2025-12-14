@@ -77,11 +77,27 @@ const WORD_DATABASE = [
 	{ word: "Сон", variants: ["сон", "sleep"] },
 	{ word: "Смех", variants: ["смех", "laugh"] },
 
-	// Игры и поп-культура
-	{ word: "Майнкрафт", variants: ["майнкрафт", "minecraft"] },
-	{ word: "Меч", variants: ["меч", "sword"] },
-	{ word: "Щит", variants: ["щит", "shield"] },
-	{ word: "Дракон", variants: ["дракон", "dragon"] },
+	// Игры и Аниме (Персонажи и предметы)
+	{ word: "Покебол", variants: ["покебол", "pokeball", "шар"] },
+	{ word: "Пикачу", variants: ["пикачу", "pikachu"] },
+	{ word: "Крипер", variants: ["крипер", "creeper", "моб"] },
+	{ word: "Кирка", variants: ["кирка", "pickaxe"] },
+	{ word: "Стив", variants: ["стив", "steve", "майнкрафт"] },
+	{ word: "Амогус", variants: ["амогус", "among us", "предатель", "импостер", "космонавт"] },
+	{ word: "Марио", variants: ["марио", "mario", "водопроводчик"] },
+	{ word: "Соник", variants: ["соник", "sonic", "еж"] },
+	{ word: "Наруто", variants: ["наруто", "naruto", "ниндзя"] },
+	{ word: "Тетрадь смерти", variants: ["тетрадь смерти", "death note", "тетрадь"] },
+	{ word: "Луффи", variants: ["луффи", "luffy", "шляпа"] },
+	{ word: "Тоторо", variants: ["тоторо", "totoro"] },
+	{ word: "Ева", variants: ["ева", "eva", "робот", "меха"] }, // Для фанатов мех
+	{ word: "Фредди", variants: ["фредди", "freddy", "мишка", "фнаф", "fnaf"] },
+	{ word: "Геймпад", variants: ["геймпад", "джойстик", "joystick", "gamepad"] },
+	{ word: "Хедкраб", variants: ["хедкраб", "headcrab", "краб"] },
+	{ word: "Портал", variants: ["портал", "portal"] },
+	{ word: "Катана", variants: ["катана", "katana", "меч"] },
+	{ word: "Кунай", variants: ["кунай", "kunai", "нож"] },
+	{ word: "Примогем", variants: ["примогем", "камень истока", "primogem"] }, // Геншин/Хонкай
 
 	// Места
 	{ word: "Замок", variants: ["замок", "castle"] },
