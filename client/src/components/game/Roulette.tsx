@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { Howl } from "howler";
 
 interface Player {
 	userId: string;
@@ -9,69 +10,122 @@ interface Player {
 interface RouletteProps {
 	players: Player[];
 	winnerId: string;
-	duration: number; // ms
+	duration: number;
 	onComplete: () => void;
 }
 
-export const Roulette: React.FC<RouletteProps> = ({ players, winnerId, duration, onComplete }) => {
-	const containerRef = useRef<HTMLDivElement>(null);
-	const [offset, setOffset] = useState(0);
-	const CARD_WIDTH = 120; // Ширина карточки
-	const GAP = 16; // Отступ
+export const Roulette: React.FC<RouletteProps> = ({ players: incomingPlayers, winnerId, duration, onComplete }) => {
+	const [activeIndex, setActiveIndex] = useState<number | null>(null);
+	const [isFinished, setIsFinished] = useState(false);
 
-	// Генерируем длинную ленту (повторяем игроков много раз)
-	// Чтобы победитель оказался где-то в конце (например, на 75-й позиции)
-	const REPEAT_COUNT = 20;
-	const extendedPlayers = Array(REPEAT_COUNT).fill(players).flat();
+	const [players] = useState(incomingPlayers);
 
-	// Находим индекс победителя в последней трети ленты
-	// Чтобы прокрутка была долгой
-	const targetIndex = extendedPlayers.findLastIndex(p => p.userId === winnerId) - Math.floor(players.length * 2);
+	const soundRef = useRef<Howl | null>(null);
 
 	useEffect(() => {
-		// Запускаем анимацию с небольшой задержкой для плавности
-		const timeout = setTimeout(() => {
-			// Вычисляем смещение:
-			// (индекс * ширина) - (половина экрана) + (половина карточки) + (рандомный сдвиг внутри карточки для реализма)
-			const randomOffset = Math.floor(Math.random() * (CARD_WIDTH - 20)) + 10;
-			const targetOffset = (targetIndex * (CARD_WIDTH + GAP)) - (window.innerWidth / 2) + (CARD_WIDTH / 2);
-
-			setOffset(targetOffset);
-		}, 100);
-
-		const completeTimeout = setTimeout(onComplete, duration + 1000);
-
+		soundRef.current = new Howl({ src: ["/sounds/roulette/sound.mp3"], volume: 0.4 });
 		return () => {
-			clearTimeout(timeout);
-			clearTimeout(completeTimeout);
+			soundRef.current?.unload();
 		};
-	}, [winnerId]);
+	}, []);
+
+	useEffect(() => {
+		if (players.length === 0) return;
+
+		const winnerIndex = players.findIndex(p => p.userId === winnerId);
+		if (winnerIndex === -1) {
+			onComplete();
+			return;
+		}
+
+		let startTime = Date.now();
+		let speed = 50;
+		let timeoutId: number;
+		let currentIndex = 0;
+
+		const nextTick = () => {
+			const elapsed = Date.now() - startTime;
+			const progress = elapsed / duration;
+
+			if (progress < 0.7) {
+				speed *= 1.05;
+			} else {
+				speed *= 1.15;
+			}
+
+			let nextIndex;
+			do {
+				nextIndex = Math.floor(Math.random() * players.length);
+			} while (nextIndex === currentIndex && players.length > 1);
+
+			currentIndex = nextIndex;
+
+			if (elapsed >= duration) {
+				setActiveIndex(winnerIndex);
+				setIsFinished(true);
+				soundRef.current?.rate(1.5);
+				soundRef.current?.play();
+
+				setTimeout(onComplete, 2000);
+				return;
+			}
+
+			setActiveIndex(currentIndex);
+
+			soundRef.current?.rate(0.9 + Math.random() * 0.2);
+			soundRef.current?.play();
+
+			timeoutId = window.setTimeout(nextTick, speed);
+		};
+
+		nextTick();
+
+		return () => clearTimeout(timeoutId);
+
+	}, [winnerId, duration, onComplete, players]);
 
 	return (
-		<div className="fixed inset-0 z-50 bg-slate-900/90 flex flex-col items-center justify-center">
-			<h2 className="text-4xl text-white font-black mb-8 animate-pulse">ВЫБОР ХУДОЖНИКА...</h2>
+		<div className="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex flex-col items-center justify-center p-4">
+			<h2 className="text-4xl md:text-6xl text-white font-black mb-8 animate-bounce drop-shadow-[0_5px_5px_rgba(0,0,0,0.5)]">
+				{isFinished ? "🎉 ХУДОЖНИК ВЫБРАН! 🎉" : "КТО ЖЕ РИСУЕТ?"}
+			</h2>
 
-			{/* Стрелка-указатель */}
-			<div className="w-0 h-0 border-l-[20px] border-l-transparent border-r-[20px] border-r-transparent border-t-[30px] border-t-yellow-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[90px] z-20 drop-shadow-lg" />
+			<div className="flex flex-wrap justify-center gap-4 max-w-5xl">
+				{players.map((player, i) => {
+					const isActive = i === activeIndex;
+					const isWinner = isFinished && i === activeIndex;
 
-			<div className="w-full overflow-hidden bg-slate-800 py-8 border-y-4 border-yellow-400 relative shadow-2xl">
-				<div
-					className="flex gap-4 px-[50vw]" // Начинаем с середины
-					style={{
-						transform: `translateX(-${offset}px)`,
-						transition: `transform ${duration}ms cubic-bezier(0.1, 0.7, 0.1, 1)` // CS:GO easing
-					}}
-				>
-					{extendedPlayers.map((player, i) => (
+					return (
 						<div
-							key={i}
-							className={`flex-shrink-0 w-[120px] h-[120px] bg-white rounded-xl p-2 flex flex-col items-center justify-center shadow-lg border-b-4 ${player.userId === winnerId ? 'border-indigo-500' : 'border-slate-300'}`}
+							key={player.userId}
+							className={`
+								relative transition-all duration-100 ease-out
+								flex flex-col items-center justify-center
+								w-32 h-32 md:w-40 md:h-40 rounded-3xl
+								${isActive
+									? "scale-110 z-10 bg-yellow-400 shadow-[0_0_30px_rgba(250,204,21,0.6)] rotate-2"
+									: "scale-100 bg-white/10 opacity-60 grayscale"
+								}
+								${isWinner ? "scale-125 bg-green-500 shadow-[0_0_50px_rgba(34,197,94,0.8)] rotate-0 animate-pulse" : ""}
+							`}
 						>
-							<img src={player.avatar} alt="avatar" className="w-16 h-16 rounded-full bg-slate-100 mb-2" />
-							<span className="font-bold text-slate-800 truncate w-full text-center text-sm">{player.name}</span>
+							<img
+								src={player.avatar}
+								alt={player.name}
+								className={`
+									w-20 h-20 md:w-24 md:h-24 rounded-full bg-white object-cover border-4
+									${isActive ? "border-slate-900" : "border-transparent"}
+								`}
+							/>
+							<span className={`
+								mt-2 font-bold text-sm md:text-base truncate max-w-[90%] px-2 rounded-full
+								${isActive ? "text-slate-900 bg-white/20" : "text-white"}
+							`}>
+								{player.name}
+							</span>
 						</div>
-					))}
-				</div>
+					);
+				})}
 			</div>
 		</div>
 	);

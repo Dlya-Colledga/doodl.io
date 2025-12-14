@@ -2,16 +2,34 @@ import { useEffect, useState, useRef } from "react";
 import { socket } from "../socket";
 import { getUserId } from "../utils/session";
 
+export interface Player {
+	userId: string;
+	socketId: string;
+	name: string;
+	avatar: string;
+	score: number;
+	isOnline: boolean;
+}
+
 export const usePlayer = () => {
 	const [joined, setJoined] = useState(false);
 	const [error, setError] = useState("");
-	const [playerData, setPlayerData] = useState<any>(null);
+	const [playerData, setPlayerData] = useState<Player | null>(null);
 	const [ping, setPing] = useState(0);
 
-	const [gameStatus, setGameStatus] = useState<"waiting" | "playing">("waiting");
-	const [phase, setPhase] = useState<string | null>(null);
+	const [gameStatus, setGameStatus] = useState<"waiting" | "playing" | "finished">("waiting");
 
-	// НОВОЕ: Хранение сообщений
+	const [phase, setPhase] = useState<string | null>(null);
+	const [players, setPlayers] = useState<Player[]>([]);
+
+	const [time, setTime] = useState(0);
+	const [round, setRound] = useState(0);
+
+	const [currentArtistId, setCurrentArtistId] = useState<string | null>(null);
+	const [roundWinner, setRoundWinner] = useState<Player | null>(null);
+	const [currentWord, setCurrentWord] = useState<string>("");
+
+	const [wordsToChoose, setWordsToChoose] = useState<any[]>([]);
 	const [messages, setMessages] = useState<any[]>([]);
 
 	const heartbeatRef = useRef<number | null>(null);
@@ -24,9 +42,8 @@ export const usePlayer = () => {
 		const onHandshakeSuccess = (data: any) => {
 			setJoined(true);
 			setPlayerData(data);
-			setGameStatus(data.status);
-			setPhase(data.phase);
-			// Если сервер прислал историю сообщений при входе
+			setGameStatus(data.status || "waiting");
+			setPhase(data.phase || "lobby");
 			if (data.messages) setMessages(data.messages);
 			setError("");
 			startHeartbeat();
@@ -38,18 +55,37 @@ export const usePlayer = () => {
 			stopHeartbeat();
 		};
 
-		const onGameStateUpdate = (data: { status: "waiting" | "playing", phase: string }) => {
-			setGameStatus(data.status);
-			setPhase(data.phase);
+		const onGameTick = (state: any) => {
+			setGameStatus(state.status);
+			setPhase(state.phase);
+			setPlayers(state.players || []);
+			setTime(state.time);
+			setRound(state.round);
+
+			setCurrentArtistId(state.currentArtistId);
+			setRoundWinner(state.roundWinner);
+
+			if (state.phase === "roulette") {
+				setCurrentWord("");
+			}
+			else if (state.currentWord) {
+				setCurrentWord(state.currentWord);
+			}
+
+			if (state.phase !== "choosing") {
+				setWordsToChoose([]);
+			}
 		};
 
-		// НОВОЕ: Слушаем новые сообщения
+		const onYourTurnToChoose = (words: any[]) => {
+			setWordsToChoose(words);
+		};
+
 		const onNewMessage = (msg: any) => {
-			setMessages((prev) => [...prev, msg]);
+			setMessages((prev) => [...prev, msg].slice(-50));
 		};
 
 		const onForceReconnect = () => {
-			console.log("⚠️ Сервер забыл нас. Пробуем войти заново.");
 			if (nameRef.current) joinGame(nameRef.current);
 		};
 
@@ -59,15 +95,17 @@ export const usePlayer = () => {
 
 		socket.on("handshake_success", onHandshakeSuccess);
 		socket.on("handshake_error", onHandshakeError);
-		socket.on("game_state_update", onGameStateUpdate);
-		socket.on("chat_new_message", onNewMessage); // Подписка
+		socket.on("game_tick", onGameTick);
+		socket.on("your_turn_to_choose", onYourTurnToChoose);
+		socket.on("chat_new_message", onNewMessage);
 		socket.on("force_reconnect", onForceReconnect);
 		socket.on("connect", onConnect);
 
 		return () => {
 			socket.off("handshake_success", onHandshakeSuccess);
 			socket.off("handshake_error", onHandshakeError);
-			socket.off("game_state_update", onGameStateUpdate);
+			socket.off("game_tick", onGameTick);
+			socket.off("your_turn_to_choose", onYourTurnToChoose);
 			socket.off("chat_new_message", onNewMessage);
 			socket.off("force_reconnect", onForceReconnect);
 			socket.off("connect", onConnect);
@@ -81,9 +119,8 @@ export const usePlayer = () => {
 			if (socket.connected) {
 				const start = Date.now();
 				socket.emit("heartbeat", { ping: pingRef.current }, () => {
-					const latency = Date.now() - start;
-					pingRef.current = latency;
-					setPing(latency);
+					pingRef.current = Date.now() - start;
+					setPing(pingRef.current);
 				});
 			}
 		}, 1000);
@@ -109,5 +146,16 @@ export const usePlayer = () => {
 		socket.emit("player_message", text);
 	};
 
-	return { joined, error, joinGame, playerData, ping, gameStatus, phase, messages, sendMessage };
+	const selectWord = (wordObj: any) => {
+		setCurrentWord(wordObj.word);
+		socket.emit("artist_select_word", wordObj);
+		setWordsToChoose([]);
+	};
+
+	return {
+		joined, error, joinGame, playerData, ping,
+		gameStatus, phase, players, messages, sendMessage,
+		currentArtistId, roundWinner, wordsToChoose, selectWord, currentWord,
+		time, round
+	};
 };

@@ -1,6 +1,5 @@
 const { io } = require("socket.io-client");
 
-// НАСТРОЙКИ
 const SERVER_URL = "http://localhost:3001";
 const BOT_COUNT = 50;
 const CONNECTION_DELAY = 50;
